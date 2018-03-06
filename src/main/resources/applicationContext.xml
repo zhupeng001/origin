@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xmlns:tx="http://www.springframework.org/schema/tx" xmlns:mvc="http://www.springframework.org/schema/task"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context-4.3.xsd
+    http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+    http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd
+    http://www.springframework.org/schema/util
+    http://www.springframework.org/schema/util/spring-util-4.3.xsd http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd">
+    <mvc:annotation-driven/>
+    <context:annotation-config></context:annotation-config>
+    <!--<context:component-scan wonder.base-package="wonder.dao.*"/>-->
+    <bean id="propertyConfig" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <list>
+                <!-- 这里支持多种寻址方式：classpath和file -->
+                <value>classpath:jdbc.properties</value>
+                <!--<value>classpath:redis.properties</value>-->
+                <!-- 推荐使用file的方式引入，这样可以将配置和代码分离 -->
+                <value>classpath:redis.properties</value>
+            </list>
+
+        </property>
+    </bean>
+    <!-- redis config start -->
+    <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+        <property name="maxTotal" value="${redis.maxTotal}" />
+        <property name="maxIdle" value="${redis.maxIdle}" />
+        <property name="maxWaitMillis" value="${redis.maxWait}" />
+        <property name="testOnBorrow" value="${redis.testOnBorrow}" />
+        <property name="blockWhenExhausted" value="false" />
+        <property name="timeBetweenEvictionRunsMillis" value="1000" />
+        <property name="testWhileIdle" value="true" />
+    </bean>
+    <!--<bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
+        <property name="poolConfig" ref="poolConfig" />
+        <property name="hostName" value="${redis.host}" />
+        <property name="port" value="${redis.port}" />
+        &lt;!&ndash; <property name="password" value="${redis.pass}" /> &ndash;&gt;
+        <property name="database" value="${redis.dbIndex}" />
+    </bean>-->
+    <!-- 配置RedisTemplate -->
+    <!--<bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate">
+        <property name="connectionFactory"   ref="jedisConnectionFactory" />
+        <property name="keySerializer">
+            <bean class="org.springframework.data.redis.serializer.StringRedisSerializer" />
+        </property>
+        <property name="valueSerializer">
+            <bean class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer" />
+        </property>
+        <property name="hashKeySerializer">
+            <bean class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+        </property>
+        <property name="hashValueSerializer">
+            <bean class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer"/>
+        </property>
+    </bean>-->
+    <!-- 配置RedisCacheManager -->
+    <!--<bean id="redisCacheManager" class="org.springframework.data.redis.cache.RedisCacheManager">
+        <constructor-arg name="redisOperations" ref="redisTemplate" />
+        <property name="defaultExpiration" value="${redis.expiration}" />
+    </bean>-->
+    <bean id="jedisClusterFactory" class="wonder.redis.JedisClusterFactory">
+        <property name="connectionTimeout" value="3000" />
+        <property name="soTimeout" value="3000" />
+        <property name="maxRedirections" value="5" />
+        <!--<property name="password" value="${cache.redis.cluster.password}" />-->
+        <property name="jedisPoolConfig" ref="jedisPoolConfig" />
+        <property name="jedisClusterNodes" value="${cache.redis.cluster.servers}" />
+    </bean>
+    <bean id="redisManager" class="wonder.redis.RedisManager">
+        <property name="jedisCluster" ref="jedisClusterFactory" />
+    </bean>
+    <bean id="userRedisCacheManager" class="wonder.redis.cache.UserRedisCacheManager">
+        <property name="redisManager" ref="redisManager"></property>
+        <property name="memExpiry" value="600000"></property>
+        <property name="key" value="userInfo"></property>
+        <property name="waitSecond" value="3"></property>
+        <property name="asSyncLoac" value="false"></property>
+    </bean>
+    <!-- 配置RedisCacheConfig -->
+    <!--<bean id="redisCacheConfig" class="com.ssm.utils.RedisCacheConfig">
+        <constructor-arg ref="jedisConnectionFactory" />
+        <constructor-arg ref="redisTemplate" />
+        <constructor-arg ref="redisCacheManager" />
+    </bean>-->
+    <!-- redis config end -->
+
+
+    <!-- 配置c3p0连接池 -->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="driverClass" value="${jdbc.driverClass}"/>
+        <property name="jdbcUrl" value="${jdbc.url}"/>
+        <property name="user" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+    </bean>
+    <!-- 配置Hibernate相关属性 -->
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean" scope="singleton">
+        <!-- 注入连接池 -->
+        <property name="dataSource" ref="dataSource"/>
+        <!-- 配置Hibernate的属性 -->
+        <property name="hibernateProperties">
+            <props>
+                <prop key="hibernate.dialect">org.hibernate.dialect.MySQL5Dialect</prop>
+                <prop key="hibernate.show_sql">true</prop>
+                <prop key="hibernate.format_sql">true</prop>
+                <prop key="hibernate.hbm2ddl.auto">update</prop>
+            </props>
+        </property>
+        <property name="packagesToScan">
+            <list>
+                <value>wonder.entity</value>
+            </list>
+        </property>
+    </bean>
+    <bean id="hibernateTemplate" class="org.springframework.orm.hibernate4.HibernateTemplate">
+        <property name="sessionFactory" ref="sessionFactory"></property>
+    </bean>
+    <bean id="userDao" class="wonder.dao.impl.UserDaoHibernate">
+        <property name="hibernateTemplate" ref="hibernateTemplate"/>
+    </bean>
+    <bean id="userManager" class="wonder.service.impl.UserManagerImpl">
+        <constructor-arg index="0" ref="userDao"/>
+    </bean>
+    <bean id="transactionManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory"></property>
+    </bean>
+    <!-- 开启事务扫描，采用注解方式 -->
+    <tx:annotation-driven transaction-manager="transactionManager"/>
+
+</beans>

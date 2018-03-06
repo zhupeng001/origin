@@ -1,0 +1,14 @@
+<!DOCTYPE struts PUBLIC
+        "-//Apache Software Foundation//DTD Struts Configuration 2.5//EN"
+        "http://struts.apache.org/dtds/struts-2.5.dtd">
+<struts>
+    <!-- struts2的action必须放在一个指定的包空间下定义 -->
+    <constant name="struts.enable.DynamicMethodInvocation" value="true" />
+    <package name="default" extends="struts-default" namespace="/">
+        <global-allowed-methods>regex:.*</global-allowed-methods>
+        <!-- 定义处理请求URL为login.action的Action -->
+        <action name="*" class="wonder.action.UserAction" method="{1}">
+            <result name="success">/index.jsp</result>
+        </action>
+    </package>
+</struts>
